@@ -69,3 +69,56 @@ func (manager *GraphExec) AddChild(element *Node) {
 	manager.Nodes = append(manager.Nodes, element)
 	manager.NodeMap[element.Out] = element
 }
+
+func (g *GraphExec) dfs(node *Node, visited, tempMarked map[string]bool, result *[]string) error {
+	if tempMarked[node.Out] {
+		fmt.Println(node, node.Out)
+		return fmt.Errorf("graph contains a cycle, cannot perform topological sort")
+	}
+
+	if !visited[node.Out] {
+		tempMarked[node.Out] = true
+
+		for _, neighbor := range node.Deps {
+			if err := g.dfs(neighbor, visited, tempMarked, result); err != nil {
+				return err
+			}
+		}
+		visited[node.Out] = true
+		tempMarked[node.Out] = false
+		*result = append(*result, node.Out)
+	}
+	return nil
+}
+
+func (g *GraphExec) TopologicalSort() ([]string, error) {
+	visited := make(map[string]bool)
+	result := []string{}
+	tempMarked := make(map[string]bool)
+
+	for _, node := range g.Nodes {
+		if !visited[node.Out] {
+			if err := g.dfs(node, visited, tempMarked, &result); err != nil {
+				return nil, err
+			}
+		}
+	}
+	for i, j := 0, len(result)-1; i < j; i, j = i+1, j-1 {
+		result[i], result[j] = result[j], result[i]
+	}
+	return result, nil
+}
+
+func (g *GraphExec) Execute(map[string]any) {
+
+	ordering, e := g.TopologicalSort()
+	if e != nil {
+		panic(e)
+	}
+	// Need to reverse since did topological sort backwards
+	for i, j := 0, len(ordering)-1; i < j; i, j = i+1, j-1 {
+		ordering[i], ordering[j] = ordering[j], ordering[i]
+	}
+	fmt.Println(ordering)
+
+}
